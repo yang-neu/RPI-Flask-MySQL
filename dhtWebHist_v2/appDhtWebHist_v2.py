@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  appDhtWebHist_v2.py
@@ -10,6 +10,7 @@
 	RPi WEb Server for DHT captured data with Gage and Graph plot  
 '''
 
+import pymysql.cursors
 from datetime import datetime
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -19,32 +20,75 @@ import io
 from flask import Flask, render_template, send_file, make_response, request
 app = Flask(__name__)
 
-import sqlite3
-conn=sqlite3.connect('../sensorsData.db')
-curs=conn.cursor()
 
 # Retrieve LAST data from database
 def getLastData():
-	for row in curs.execute("SELECT * FROM DHT_data ORDER BY timestamp DESC LIMIT 1"):
-		time = str(row[0])
-		temp = row[1]
-		hum = row[2]
-	#conn.close()
-	return time, temp, hum
+    try:
+        conn = pymysql.connect( user='alex', passwd='!Passw0rd', host='192.168.11.48', db='temp_db')
+        curs=conn.cursor()
+        curs.execute("SELECT * FROM dht11_sensor ORDER BY probe_date DESC LIMIT 1")
+        row = curs.fetchone()
+        time = str(row[1])
+        temp = row[2]
+        hum = row[3]
+        return time, temp, hum
+    except pymysql.InternalError as e:
+          print("Error reading data from MySQL table", e)
+    finally:
+          if (conn.open):
+              curs.close()
+              conn.close()
+              print("MySQL connection is closed")
 
 # Get 'x' samples of historical data
 def getHistData (numSamples):
-	curs.execute("SELECT * FROM DHT_data ORDER BY timestamp DESC LIMIT "+str(numSamples))
-	data = curs.fetchall()
-	dates = []
-	temps = []
-	hums = []
-	for row in reversed(data):
-		dates.append(row[0])
-		temps.append(row[1])
-		hums.append(row[2])
-		temps, hums = testeData(temps, hums)
-	return dates, temps, hums
+    try:
+        conn = pymysql.connect( user='alex', passwd='!Passw0rd', host='192.168.11.48', db='temp_db')
+        curs=conn.cursor()
+        sql = "SELECT * FROM dht11_sensor ORDER BY probe_date DESC LIMIT %s"
+        print(sql, numSamples)
+        curs.execute(sql,(numSamples,))
+        data = curs.fetchall()
+        dates = []
+        temps = []
+        hums = []
+        for row in reversed(data):
+                dates.append(str(row[1]))
+                temps.append(row[2])
+                hums.append(row[3])
+                temps, hums = testeData(temps, hums)
+        return dates, temps, hums
+    except pymysql.InternalError as e:
+          print("Error reading data from MySQL table", e)
+    finally:
+          if (conn.open):
+              curs.close()
+              conn.close()
+              print("MySQL connection is closed")
+
+def getHistDataL (numSamples):
+    dates = []
+    temps = []
+    hums = []
+    maxOnce = 300
+    while True:
+        mod = numSamples % maxOnce
+        remain = numSamples - mod
+        print ('remian' , remain)
+        if (remain > 0):
+            ds,ts,hs = getHistData (maxOnce)
+            dates = dates + ds
+            temps = temps + ts
+            hums = hums + hs
+            continue
+        else:
+            ds,ts,hs = getHistData (mod)
+            dates = dates + ds
+            temps = temps + ts
+            hums = hums + hs
+            break
+
+    return dates, temps, hums
 
 # Test data for cleanning possible "out of range" values
 def testeData(temps, hums):
@@ -59,19 +103,32 @@ def testeData(temps, hums):
 
 # Get Max number of rows (table size)
 def maxRowsTable():
-	for row in curs.execute("select COUNT(temp) from  DHT_data"):
-		maxNumberRows=row[0]
-	return maxNumberRows
+    try:
+        conn = pymysql.connect( user='alex', passwd='!Passw0rd', host='192.168.11.48', db='temp_db')
+        curs=conn.cursor()
+        curs.execute("select COUNT(temp) from  dht11_sensor")
+        (maxNumberRows,) = curs.fetchone()
+
+        return maxNumberRows
+    except pymysql.InternalError as e:
+          print("Error reading data from MySQL table", e)
+    finally:
+          if (conn.open):
+              curs.close()
+              conn.close()
+              print("MySQL connection is closed")
 
 # Get sample frequency in minutes
 def freqSample():
-	times, temps, hums = getHistData (2)
-	fmt = '%Y-%m-%d %H:%M:%S'
-	tstamp0 = datetime.strptime(times[0], fmt)
-	tstamp1 = datetime.strptime(times[1], fmt)
-	freq = tstamp1-tstamp0
-	freq = int(round(freq.total_seconds()/60))
-	return (freq)
+    times, temps, hums = getHistData (2)
+    fmt = '%Y-%m-%d %H:%M:%S'
+    tstamp0 = datetime.strptime(times[0], fmt)
+    tstamp1 = datetime.strptime(times[1], fmt)
+    freq = tstamp1-tstamp0
+    freq = int(round(freq.total_seconds()/60))
+    if (freq == 0):
+        freq = 1
+    return (freq)
 
 # define and initialize global variables
 global numSamples
