@@ -1,5 +1,5 @@
 # RPI-Flask-MySQL
-Capturing real data (RPi/DHT22), saving them on a database (MySQL), creating graphs (Matplotlib) and present them on a web page(Flask). 
+Capturing real data (RPi/DHT11), saving them on a database (MySQL), creating graphs (Matplotlib) and present them on a web page(Flask). 
 <br>
 <br>
 The original project can be found on:
