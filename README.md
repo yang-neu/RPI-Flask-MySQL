@@ -1,8 +1,8 @@
 # RPI-Flask-MySQL
-Capturing real data (RPi/DHT22), saving them on a database (SQLite), creating graphs (Matplotlib) and present them on a web page(Flask). 
+Capturing real data (RPi/DHT22), saving them on a database (MySQL), creating graphs (Matplotlib) and present them on a web page(Flask). 
 <br>
 <br>
-The complete project can be found on:
+The original project can be found on:
 <p>
 https://www.hackster.io/mjrobot/from-data-to-graph-a-web-jorney-with-flask-and-sqlite-4dba35
   </p>
